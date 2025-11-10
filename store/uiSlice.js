@@ -1,4 +1,3 @@
-// store/uiSlice.js
 import { createSlice } from 'https://cdn.skypack.dev/@reduxjs/toolkit';
 
 const uiSlice = createSlice({
@@ -9,7 +8,6 @@ const uiSlice = createSlice({
         exportStatus: 'idle' 
     },
     reducers: {
-        // Usado por el WorkerFacade (Export)
         setExportStatus: (state, action) => {
             state.exportStatus = action.payload;
         },

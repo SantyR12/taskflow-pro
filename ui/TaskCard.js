@@ -1,13 +1,6 @@
-// ui/TaskCard.js
 import { store } from '../store/index.js';
-// 🛑 Importar removeTaskFromColumn
 import { updateTask, deleteTask } from '../store/tasksSlice.js'; 
 import { removeTaskFromColumn } from '../store/boardSlice.js'; 
-
-
-// ---------------------------------------------------
-// 🛑 LÓGICA DEL MODAL DE EDICIÓN (Reemplaza a prompt)
-// ---------------------------------------------------
 
 const showEditModal = (taskId, currentTitle) => {
     const modal = document.getElementById('edit-task-modal');
@@ -28,7 +21,6 @@ const showEditModal = (taskId, currentTitle) => {
         modal.style.display = 'none';
     };
 
-    // Manejar cierre
     closeBtn.onclick = closeModal;
     window.onclick = (event) => {
         if (event.target.classList.contains('modal-backdrop') || event.target.id === 'edit-task-modal') {
@@ -36,7 +28,6 @@ const showEditModal = (taskId, currentTitle) => {
         }
     };
 
-    // Manejar guardado
     saveBtn.onclick = () => {
         const newTitle = input.value.trim();
 
@@ -54,60 +45,44 @@ const showEditModal = (taskId, currentTitle) => {
     };
 };
 
-// ---------------------------------------------------
-// FUNCIÓN PRINCIPAL DE LISTENERS
-// ---------------------------------------------------
 
 export const initializeTaskCardListeners = (taskId, taskTitle) => {
-    // Escucha el botón de eliminar
     const deleteBtn = document.getElementById(`delete-btn-${taskId}`);
     if (deleteBtn) {
         deleteBtn.onclick = () => {
             if (confirm(`¿Seguro que quieres eliminar la tarea #${taskId}: "${taskTitle}"?`)) {
                 
-                // 1. Encontrar la columna actual
                 const state = store.getState();
                 let colIdToRemove = null;
                 for (const colId in state.board.columns) {
-                    // Nota: task.id puede ser string o number dependiendo de cómo lo genera nanoid
                     if (state.board.columns[colId].taskIds.includes(String(taskId))) {
                         colIdToRemove = colId;
                         break;
                     }
                 }
                 
-                // 2. Despachar la eliminación de la columna (NUEVA LÓGICA)
                 if (colIdToRemove) {
                     store.dispatch(removeTaskFromColumn({ taskId: taskId, columnId: colIdToRemove }));
                 }
                 
-                // 3. Despachar la eliminación del store de tareas
                 store.dispatch(deleteTask(taskId));
             }
         };
     }
-
-    // Escucha el botón de editar
     const editBtn = document.getElementById(`edit-btn-${taskId}`);
     if (editBtn) {
         editBtn.onclick = () => {
             const currentTask = store.getState().tasks.tasks[taskId];
             const currentTitle = currentTask ? currentTask.title : taskTitle;
 
-            // 🛑 LLAMAMOS AL MODAL
             showEditModal(taskId, currentTitle);
         };
     }
 };
 
-// ---------------------------------------------------
-// RENDERIZADO DE LA TARJETA (Usando clases CSS)
-// ---------------------------------------------------
-
 export const renderTaskCard = (task, assignedUser) => {
     if (!task) return '<div>Tarea no encontrada</div>';
     
-    // Obtener la columna de la tarea para ondragstart
     const state = store.getState();
     const board = state.board.columns;
     let sourceColId = '';
@@ -121,8 +96,6 @@ export const renderTaskCard = (task, assignedUser) => {
             break;
         }
     }
-
-    // 🟢 Usamos clases CSS (necesitas main.css completo)
     return `
         <div 
             id="task-card-${task.id}"

@@ -1,4 +1,3 @@
-// ui/Login.js - Simulación de componente de Login
 import { store } from '../store/index.js';
 import { loginSuccess } from '../store/authSlice.js';
 import apiService from '../services/apiService.js';
@@ -19,7 +18,6 @@ export const renderLogin = () => {
             const email = document.getElementById('email').value;
             
             try {
-                // Fetch al Patrón Singleton para el login
                 const users = await apiService.get(`users?email=${email}`);
                 if (users.length > 0) {
                     const user = users[0];

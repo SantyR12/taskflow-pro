@@ -1,4 +1,3 @@
-// store/index.js
 import { configureStore } from 'https://cdn.skypack.dev/@reduxjs/toolkit';
 import authReducer from './authSlice.js';
 import boardReducer from './boardSlice.js';

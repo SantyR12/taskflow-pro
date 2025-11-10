@@ -1,7 +1,5 @@
-// store/tasksSlice.js - Almacena los detalles de la tarea
 import { createSlice } from 'https://cdn.skypack.dev/@reduxjs/toolkit';
 
-// Función simple de simulación de nanoid
 const nanoid = () => Math.random().toString(36).substring(2, 9); 
 
 const tasksSlice = createSlice({
@@ -12,7 +10,7 @@ const tasksSlice = createSlice({
             '2': { id: '2', title: 'Configurar Redux Store', userId: 1, completed: false },
             '3': { id: '3', title: 'Implementar Singleton API', userId: 2, completed: false },
         },
-        newlyCreatedTaskId: null, // 🛑 NUEVA PROPIEDAD para el ID temporal
+        newlyCreatedTaskId: null,
     },
     reducers: {
         createTask: (state, action) => {
@@ -28,15 +26,12 @@ const tasksSlice = createSlice({
                 lastActivity: new Date().toISOString()
             };
 
-            // 1. Mutación: Agregar la nueva tarea
             state.tasks[newTaskId] = newTask;
             
-            // 2. Mutación: Guardar el ID de la tarea recién creada
             state.newlyCreatedTaskId = newTaskId;
             
             console.log(`[Redux] Nueva tarea #${newTaskId} creada.`);
             
-            // 🛑 ¡ELIMINADO EL RETURN CONFLICTIVO! Immer maneja el estado.
         },
         
         clearNewTaskId: (state) => {
@@ -77,6 +72,5 @@ const tasksSlice = createSlice({
     }
 });
 
-// 🛑 Exportar todas las acciones, incluyendo clearNewTaskId
 export const { setTasks, updateTaskFromSync, updateTask, deleteTask, createTask, clearNewTaskId } = tasksSlice.actions;
 export default tasksSlice.reducer;

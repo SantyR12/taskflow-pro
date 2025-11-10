@@ -14,7 +14,6 @@ const boardSlice = createSlice({
         moveTask: (state, action) => {
             const { sourceColId, destColId, sourceIndex, destIndex, taskId } = action.payload;
 
-            // Lógica de movimiento
             state.columns[sourceColId].taskIds.splice(sourceIndex, 1);
             state.columns[destColId].taskIds.splice(destIndex, 0, taskId);
             
@@ -27,7 +26,6 @@ const boardSlice = createSlice({
             console.log(`[Redux] Tarea #${taskId} añadida a columna ${columnId}.`);
         },
 
-        // 🟢 REDUCER NECESARIO PARA ELIMINAR TAREA
         removeTaskFromColumn: (state, action) => {
             const { taskId, columnId } = action.payload;
             if (state.columns[columnId]) {
@@ -38,6 +36,5 @@ const boardSlice = createSlice({
     }
 });
 
-// 🛑 Exportar todas las acciones
 export const { moveTask, addTaskToColumn, removeTaskFromColumn } = boardSlice.actions; 
 export default boardSlice.reducer;
