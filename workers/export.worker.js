@@ -3,13 +3,27 @@
 
 // Las estrategias de exportación (Patrón Strategy)
 const ExportStrategies = {
-    // Estrategia 1: CSV
+    // 🟢 Estrategia 1: CSV (ACTUALIZADA con campos reales del tablero)
     CSV: (data) => { 
-        if (!data || data.length === 0) return 'ID,Title,Completed\n';
-        const headers = ['id', 'title', 'completed', 'userId'].join(',');
-        const rows = data.map(item => 
-            [item.id, `"${item.title.replace(/"/g, '""')}"`, item.completed, item.userId].join(',')
-        ).join('\n');
+        if (!data || data.length === 0) return 'ID,Título,Columna,Usuario Asignado,Última Actividad\n';
+        
+        // Cabeceras finales
+        const headers = ['ID', 'Título', 'Columna', 'Usuario Asignado', 'Última Actividad'].join(',');
+        
+        const rows = data.map(item => {
+            // Asegurarse de escapar comillas dobles en el título
+            const cleanTitle = `"${item.title.replace(/"/g, '""')}"`;
+            const cleanActivity = item.lastActivity || 'N/A';
+            
+            return [
+                item.id, 
+                cleanTitle, 
+                item.columnName, 
+                item.assignedUser, 
+                cleanActivity
+            ].join(',');
+        }).join('\n');
+        
         return headers + '\n' + rows;
     },
     // Estrategia 2: JSON

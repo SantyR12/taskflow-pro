@@ -1,79 +1,63 @@
-// patterns/facade/WorkerFacade.js - Patrón Facade (Oculta la complejidad de 3 Workers)
-import { store } from '../../store/index.js';
-import { setTasks, updateTaskFromSync } from '../../store/tasksSlice.js';
-import { setUsers } from '../../store/usersSlice.js';
-import { addLog } from '../../store/activityLogSlice.js';
-import { setExportStatus } from '../../store/uiSlice.js';
-import ActivityFactory from '../factory/ActivityFactory.js'; // Usa el Factory
+// patterns/facade/WorkerFacade.js
 
-class WorkerFacade {
-constructor() {
-        console.log("[Facade] Inicializando Workers con rutas corregidas.");
-        
-        // CORRECCIÓN: Rutas relativas a la raíz del proyecto (donde está index.html)
-        this.prefetchWorker = new Worker('workers/prefetch.worker.js', { type: 'module' });
-        this.syncWorker = new Worker('workers/sync.worker.js', { type: 'module' });
-        this.exportWorker = new Worker('workers/export.worker.js', { type: 'module' });
+// 1. Almacenamiento de los suscriptores (Callbacks del hilo principal)
+const subscribers = [];
 
-        // Configura los Listeners
-        this.prefetchWorker.onmessage = this._handlePrefetchComplete.bind(this);
-        this.syncWorker.onmessage = this._handleSyncUpdate.bind(this); // Patrón Observer (Listener)
-        this.exportWorker.onmessage = this._handleExportComplete.bind(this);
-    }
+// 2. Inicialización de los Workers
+// NOTA: Ajusta la ruta si es necesario. Se asume que estás en patterns/facade/
+const prefetchWorker = new Worker('../workers/prefetch.worker.js', { type: 'module' });
+const syncWorker = new Worker('../workers/sync.worker.js', { type: 'module' });
+const exportWorker = new Worker('../workers/export.worker.js', { type: 'module' });
+
+// 3. Función central para notificar a todos los suscriptores
+const notifySubscribers = (eventData) => {
+    subscribers.forEach(callback => {
+        // Ejecuta cada función suscrita con los datos recibidos del Worker
+        callback(eventData);
+    });
+};
+
+// 4. Conexión de los eventos onmessage de cada Worker al notificador central
+prefetchWorker.onmessage = (event) => notifySubscribers(event.data);
+syncWorker.onmessage = (event) => notifySubscribers(event.data);
+exportWorker.onmessage = (event) => notifySubscribers(event.data);
+// Opcional: Manejar errores en los Workers
+prefetchWorker.onerror = (error) => notifySubscribers({ type: 'WORKER_ERROR', worker: 'Prefetch', message: error.message });
+syncWorker.onerror = (error) => notifySubscribers({ type: 'WORKER_ERROR', worker: 'Sync', message: error.message });
+exportWorker.onerror = (error) => notifySubscribers({ type: 'WORKER_ERROR', worker: 'Export', message: error.message });
+
+
+// 5. El Objeto Facade exportado
+export const workerFacade = {
+    // Métodos para iniciar tareas en Workers
+    startPrefetch: (userId) => {
+        prefetchWorker.postMessage({ type: 'PREFETCH_DATA', payload: { userId } });
+    },
     
-    // --- 1. Worker 1 (Prefetch) ---
-    startPrefetch(userId) {
-        this.prefetchWorker.postMessage({ type: 'START', payload: userId });
-    }
-    
-    // Maneja la respuesta del Worker 1
-    _handlePrefetchComplete(event) {
-        if (event.data.type === 'PREFETCH_COMPLETE') {
-            const { tasks, users } = event.data.payload;
-            // Despacha el payload gigante a los Slices correspondientes
-            store.dispatch(setTasks(tasks));
-            store.dispatch(setUsers(users));
-            console.log('[Facade] Prefetch completado y datos despachados a Redux.');
+    startSync: (userId) => {
+        syncWorker.postMessage({ type: 'START_SYNC', payload: { userId } });
+    },
+
+    startExport: (data, format) => {
+        exportWorker.postMessage({ type: 'EXPORT_DATA', payload: { data, format } });
+    },
+
+    // 🟢 Método subscribe (El que faltaba)
+    /**
+     * Permite que el hilo principal se suscriba para recibir mensajes de los Workers.
+     * @param {function} callback - La función a ejecutar cuando un Worker envía un mensaje.
+     */
+    subscribe: (callback) => {
+        if (typeof callback === 'function') {
+            subscribers.push(callback);
+        }
+    },
+
+    // Método opcional para limpiar un listener
+    unsubscribe: (callback) => {
+        const index = subscribers.indexOf(callback);
+        if (index > -1) {
+            subscribers.splice(index, 1);
         }
     }
-
-    // --- 2. Worker 2 (Sync/Observer) ---
-    startSync(userId) {
-        this.syncWorker.postMessage({ type: 'START', payload: userId });
-    }
-
-    // Patrón Observer (Función Update/Reacción al Sujeto)
-    _handleSyncUpdate(event) {
-        const data = event.data;
-        
-        // El Observer reacciona a los cambios de otros usuarios
-        if (data.type === 'COMMENT_ADDED') {
-            // 1. Usa el Factory para crear el objeto de Log
-            const activity = ActivityFactory.create(data.type, data.payload);
-            // 2. Despacha el Log
-            store.dispatch(addLog(activity));
-            
-            // Simular un cambio en la tarea misma
-            store.dispatch(updateTaskFromSync({ taskId: data.payload.taskId, update: { lastActivity: new Date().toLocaleTimeString() } }));
-        }
-    }
-    
-    // --- 3. Worker 3 (Export/Strategy) ---
-    startExport(data, format) {
-        store.dispatch(setExportStatus(`Exportando a ${format}...`));
-        this.exportWorker.postMessage({ type: 'EXPORT_DATA', payload: { data, format } });
-    }
-
-    _handleExportComplete(event) {
-        if (event.data.type === 'EXPORT_COMPLETE') {
-            store.dispatch(setExportStatus(`Exportación a ${event.data.format} completada.`));
-            // Aquí se manejaría la descarga del archivo (Blob/URL.createObjectURL)
-            console.log(`[Facade] Reporte en ${event.data.format} generado:`, event.data.result.substring(0, 50) + '...');
-        } else if (event.data.type === 'EXPORT_ERROR') {
-             store.dispatch(setExportStatus(`Error en exportación: ${event.data.message}`));
-        }
-    }
-}
-
-// Exporta la única instancia del Facade
-export const workerFacade = new WorkerFacade();
+};

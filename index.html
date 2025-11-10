@@ -19,5 +19,24 @@
         <button id="export-btn" class="hidden">Exportar Reporte (Strategy)</button>
         <p id="export-status-message"></p>
     </div>
-</body>
+
+    <div id="edit-task-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-content">
+            <span id="close-modal-btn" class="close-btn">&times;</span>
+            <h2>Editar Tarea</h2>
+            <p>Editando Tarea ID: <strong id="editing-task-id"></strong></p>
+            <input type="text" id="new-title-input" placeholder="Nuevo título de la tarea">
+            <button id="save-title-btn" class="save-btn">Guardar</button>
+        </div>
+    </div>
+    <div id="create-task-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-content">
+            <span id="close-create-modal-btn" class="close-btn">&times;</span>
+            <h2>Crear Nueva Tarea</h2>
+            <p>Introduce el título para la nueva tarea:</p>
+            <input type="text" id="new-task-title-input" placeholder="Título de la tarea">
+            <button id="submit-new-task-btn" class="save-btn" style="background-color: var(--success-color);">Crear Tarea</button>
+        </div>
+    </div>
+    </body>
 </html>

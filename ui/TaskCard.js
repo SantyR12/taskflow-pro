@@ -1,19 +1,88 @@
 // ui/TaskCard.js
 import { store } from '../store/index.js';
-// 🛑 Importa las nuevas acciones de tareas.
+// 🛑 Importar removeTaskFromColumn
 import { updateTask, deleteTask } from '../store/tasksSlice.js'; 
+import { removeTaskFromColumn } from '../store/boardSlice.js'; 
 
-// 🆕 Función auxiliar para inicializar listeners de edición/eliminación
-// Esta función debe ser llamada después de que el HTML retornado por renderTaskCard 
-// sea insertado en el DOM (por ejemplo, en tu función de renderizado principal del tablero).
+
+// ---------------------------------------------------
+// 🛑 LÓGICA DEL MODAL DE EDICIÓN (Reemplaza a prompt)
+// ---------------------------------------------------
+
+const showEditModal = (taskId, currentTitle) => {
+    const modal = document.getElementById('edit-task-modal');
+    const input = document.getElementById('new-title-input');
+    const saveBtn = document.getElementById('save-title-btn');
+    const closeBtn = document.getElementById('close-modal-btn');
+    const taskIdDisplay = document.getElementById('editing-task-id');
+
+    taskIdDisplay.textContent = taskId;
+    input.value = currentTitle;
+    modal.style.display = 'block';
+
+    saveBtn.onclick = null;
+    closeBtn.onclick = null;
+    window.onclick = null;
+    
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+
+    // Manejar cierre
+    closeBtn.onclick = closeModal;
+    window.onclick = (event) => {
+        if (event.target.classList.contains('modal-backdrop') || event.target.id === 'edit-task-modal') {
+            closeModal();
+        }
+    };
+
+    // Manejar guardado
+    saveBtn.onclick = () => {
+        const newTitle = input.value.trim();
+
+        if (newTitle.length > 0 && newTitle !== currentTitle) {
+            store.dispatch(updateTask({ 
+                id: taskId, 
+                updates: { title: newTitle } 
+            }));
+            closeModal();
+        } else if (newTitle.length === 0) {
+            alert('El título no puede estar vacío.');
+        } else {
+            closeModal();
+        }
+    };
+};
+
+// ---------------------------------------------------
+// FUNCIÓN PRINCIPAL DE LISTENERS
+// ---------------------------------------------------
+
 export const initializeTaskCardListeners = (taskId, taskTitle) => {
     // Escucha el botón de eliminar
     const deleteBtn = document.getElementById(`delete-btn-${taskId}`);
     if (deleteBtn) {
         deleteBtn.onclick = () => {
             if (confirm(`¿Seguro que quieres eliminar la tarea #${taskId}: "${taskTitle}"?`)) {
+                
+                // 1. Encontrar la columna actual
+                const state = store.getState();
+                let colIdToRemove = null;
+                for (const colId in state.board.columns) {
+                    // Nota: task.id puede ser string o number dependiendo de cómo lo genera nanoid
+                    if (state.board.columns[colId].taskIds.includes(String(taskId))) {
+                        colIdToRemove = colId;
+                        break;
+                    }
+                }
+                
+                // 2. Despachar la eliminación de la columna (NUEVA LÓGICA)
+                if (colIdToRemove) {
+                    store.dispatch(removeTaskFromColumn({ taskId: taskId, columnId: colIdToRemove }));
+                }
+                
+                // 3. Despachar la eliminación del store de tareas
                 store.dispatch(deleteTask(taskId));
-                // Nota: Aquí también se necesitaría una acción en boardSlice para quitar el ID de la columna
             }
         };
     }
@@ -25,25 +94,20 @@ export const initializeTaskCardListeners = (taskId, taskTitle) => {
             const currentTask = store.getState().tasks.tasks[taskId];
             const currentTitle = currentTask ? currentTask.title : taskTitle;
 
-            const newTitle = prompt('Nuevo título para la tarea:', currentTask ? currentTask.title : taskTitle);
-
-            if (newTitle !== null && newTitle.trim().length > 0 && newTitle.trim() !== currentTitle) {
-                store.dispatch(updateTask({ 
-                    id: taskId, 
-                    updates: { title: newTitle.trim() } 
-                }));
-            } else if (newTitle !== null && newTitle.trim().length === 0) {
-                alert('El título no puede estar vacío.');
-            }
+            // 🛑 LLAMAMOS AL MODAL
+            showEditModal(taskId, currentTitle);
         };
     }
-}
+};
 
+// ---------------------------------------------------
+// RENDERIZADO DE LA TARJETA (Usando clases CSS)
+// ---------------------------------------------------
 
 export const renderTaskCard = (task, assignedUser) => {
     if (!task) return '<div>Tarea no encontrada</div>';
     
-    // Obtener la columna de la tarea para calcular el índice
+    // Obtener la columna de la tarea para ondragstart
     const state = store.getState();
     const board = state.board.columns;
     let sourceColId = '';
@@ -58,41 +122,30 @@ export const renderTaskCard = (task, assignedUser) => {
         }
     }
 
-    // 🛑 Se regresa a devolver una cadena HTML para mantener la compatibilidad con tu código.
+    // 🟢 Usamos clases CSS (necesitas main.css completo)
     return `
         <div 
             id="task-card-${task.id}"
+            class="task-card"
             draggable="true" 
-            ondragstart="handleDragStart(event, ${task.id}, '${sourceColId}', ${sourceIndex})" 
-            style="
-                border: 1px solid #007bff; 
-                background: #f0f8ff; 
-                padding: 8px; 
-                margin-bottom: 5px; 
-                cursor: grab;
-                display: flex; 
-                justify-content: space-between; 
-                align-items: center;
-            "
+            ondragstart="handleDragStart(event, '${task.id}', '${sourceColId}', ${sourceIndex})" 
         >
-            <div style="flex-grow: 1;">
-                <strong>#${task.id}:</strong> ${task.title}
-                <br><small>Asignado: ${assignedUser ? assignedUser.name : 'N/A'}</small>
-                <br><small>${task.lastActivity ? 'Sync: ' + task.lastActivity : ''}</small>
-            </div>
+            <div class="card-title"><strong>#${task.id}:</strong> ${task.title}</div>
+            <small class="card-meta">Asignado: ${assignedUser ? assignedUser.name : 'N/A'}</small>
+            <small class="card-meta">${task.lastActivity ? 'Sync: ' + task.lastActivity : ''}</small>
 
-            <div id="controls-${task.id}" style="display: flex; gap: 5px; flex-shrink: 0;">
+            <div class="card-controls">
                 <button 
                     id="edit-btn-${task.id}" 
-                    style="background: #ffc107; color: black; border: none; cursor: pointer; padding: 4px 8px;"
+                    class="edit-btn"
                 >
-                    Editar
+                    ✏️
                 </button>
                 <button 
                     id="delete-btn-${task.id}" 
-                    style="background: #dc3545; color: white; border: none; cursor: pointer; padding: 4px 8px;"
+                    class="delete-btn"
                 >
-                    X
+                    🗑️
                 </button>
             </div>
         </div>
