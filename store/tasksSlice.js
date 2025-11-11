@@ -1,23 +1,27 @@
+// 🧩 FUNCIÓN: Almacena el diccionario de detalles completos de todas las tareas (datos ricos).
+// 📡 UTILIZA: El Prefetch Worker para la carga inicial y el Sync Worker para actualizaciones en tiempo real.
 import { createSlice } from 'https://cdn.skypack.dev/@reduxjs/toolkit';
-
+// Función utilitaria: genera un ID aleatorio corto. Simula un ID de cliente rápido.
 const nanoid = () => Math.random().toString(36).substring(2, 9); 
 
 const tasksSlice = createSlice({
     name: 'tasks',
     initialState: {
         tasks: {
+            // El estado inicial es un diccionario para acceso O(1) por ID
             '1': { id: '1', title: 'Diseñar Mockups', userId: 1, completed: false },
             '2': { id: '2', title: 'Configurar Redux Store', userId: 1, completed: false },
             '3': { id: '3', title: 'Implementar Singleton API', userId: 2, completed: false },
         },
-        newlyCreatedTaskId: null,
+        
+        newlyCreatedTaskId: null,// Campo temporal para coordinar la creación con boardSlice.
     },
     reducers: {
         createTask: (state, action) => {
             const { title, userId } = action.payload;
             
-            const newTaskId = nanoid(); 
-            
+            const newTaskId = nanoid();  // Generación del ID optimista.
+            // ... datos
             const newTask = {
                 id: newTaskId,
                 title,
@@ -26,7 +30,7 @@ const tasksSlice = createSlice({
                 lastActivity: new Date().toISOString()
             };
 
-            state.tasks[newTaskId] = newTask;
+            state.tasks[newTaskId] = newTask; // Inserta la tarea instantáneamente.
             
             state.newlyCreatedTaskId = newTaskId;
             
@@ -35,25 +39,29 @@ const tasksSlice = createSlice({
         },
         
         clearNewTaskId: (state) => {
-            state.newlyCreatedTaskId = null;
+            state.newlyCreatedTaskId = null; // Limpia la referencia temporal.
         },
 
         setTasks: (state, action) => {
-            const normalizedTasks = Object.keys(action.payload).reduce((acc, key) => {
-                acc[String(key)] = { ...action.payload[key], id: String(action.payload[key].id) };
-                return acc;
-            }, {});
-            state.tasks = normalizedTasks;
-            console.log(`[Redux] Tareas cargadas desde Worker 1 (${Object.keys(action.payload).length} tareas).`);
-        },
+            // Receptor del Worker 1 (Prefetch). Recibe la carga útil completa.
+            const normalizedTasks = Object.keys(action.payload).reduce((acc, key) => {
+                // Asegura la normalización: claves y IDs como strings.
+                acc[String(key)] = { ...action.payload[key], id: String(action.payload[key].id) };
+                return acc;
+            }, {});
+            state.tasks = normalizedTasks; // Sobreescribe el estado inicial con los datos del servidor.
+            console.log(`[Redux] Tareas cargadas desde Worker 1 (${Object.keys(action.payload).length} tareas).`);
+        },
         
         updateTaskFromSync: (state, action) => {
-            const { taskId, update } = action.payload;
-            if (state.tasks[taskId]) {
-                state.tasks[taskId] = { ...state.tasks[taskId], ...update };
-                console.log(`[Redux] Tarea #${taskId} actualizada por Sync Worker.`);
-            }
-        },
+            // Receptor de eventos del Worker 2 (Sync).
+            const { taskId, update } = action.payload;
+            if (state.tasks[taskId]) {
+                // Spread Operator: Sobreescribe solo las propiedades que han cambiado (update).
+                state.tasks[taskId] = { ...state.tasks[taskId], ...update };
+                console.log(`[Redux] Tarea #${taskId} actualizada por Sync Worker.`);
+            }
+        },
 
         updateTask: (state, action) => {
             const { id, updates } = action.payload;
